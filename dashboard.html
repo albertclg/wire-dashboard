@@ -300,7 +300,20 @@
                 
                 console.log('Tenant search value:', tenantValue); // Debug log
                 
+                // Check if inputs are empty or too short
                 if (!tenantValue && !amountValue) {
+                    searchStatus.style.display = 'none';
+                    return;
+                }
+                
+                // For tenant search, require at least 5 characters
+                if (tenantValue && tenantValue.length < 5) {
+                    searchStatus.style.display = 'none';
+                    return;
+                }
+                
+                // For amount search, require at least 2 digits
+                if (amountValue && amountValue.length < 2) {
                     searchStatus.style.display = 'none';
                     return;
                 }
@@ -331,15 +344,20 @@
                     
                     // Relaxed tenant matching
                     let matchTenant = false;
-                    if (tenantValue) {
+                    if (tenantValue && tenantValue.length >= 5) {
                         // Check if normalized versions contain the search term
                         matchTenant = normalizedOriginator.includes(normalizedTenantSearch) ||
                                      normalizedReference.includes(normalizedTenantSearch);
-                    } else {
-                        matchTenant = true; // If no tenant search, consider it a match
+                    } else if (!tenantValue) {
+                        matchTenant = true; // If no tenant search, consider it a match for amount-only search
                     }
                     
-                    let matchAmount = !amountValue || Math.abs(parseFloat(amount) - parseFloat(amountValue)) < 0.01;
+                    let matchAmount = false;
+                    if (amountValue && amountValue.length >= 2) {
+                        matchAmount = Math.abs(parseFloat(amount) - parseFloat(amountValue)) < 0.01;
+                    } else if (!amountValue) {
+                        matchAmount = true; // If no amount search, consider it a match for tenant-only search
+                    }
                     
                     if (matchTenant && matchAmount) {
                         row.classList.add('highlight');
@@ -383,7 +401,7 @@
             <button class="logout-btn" onclick="logout()">← Logout</button>
             <h1>Wire Transfer Receipts</h1>
             <p>CLG Management</p>
-            <div class="last-updated">Last Updated: 8/21 2:25 PM</div>
+            <div class="last-updated">Last Updated: 8/21 4:25 PM</div>
         </div>
         
         <div class="search-section">
@@ -418,6 +436,12 @@
                             <td class="originator">Brett D Jennings OR Anne-laure Cleeremans 21 Willett AVE Apt 414 Port Chester NY 10573-4358 US</td>
                             <td class="reference">T 0010490 - CLEEREMANS JENNINGS</td>
                         </tr>
+                        <tr>
+                            <td class="date">08/21/2025</td>
+                            <td class="amount">$5,805.83</td>
+                            <td class="originator">Brett D Jennings OR Anne-laure Cleeremans</td>
+                            <td class="reference">t0010490 - Cleeremans Jennings</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -428,6 +452,5 @@
             <span class="info-badge">⏰ Updates Every Hour at :15 (6:15 AM - 5:15 PM PST)</span>
         </div>
     </div>
-    
 </body>
 </html>
