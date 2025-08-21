@@ -285,16 +285,20 @@
             }
             
             function normalizeSearchText(text) {
-                // Remove all spaces, dashes, and convert to lowercase for comparison
-                return text.replace(/[\s\-]/g, '').toLowerCase();
+                // Remove ALL spaces, dashes, and special characters, convert to lowercase
+                // This handles "T 0010490" -> "t0010490" and "T0010490-LASTNAME" -> "t0010490lastname"
+                return text.replace(/[\s\-\_\.\,]/g, '').toLowerCase().trim();
             }
             
             function searchTable() {
+                console.log('Search triggered'); // Debug log
                 clearHighlights();
                 searchStatus.style.display = 'none';
                 
                 const tenantValue = tenantSearch.value.trim();
-                const amountValue = amountSearch.value;
+                const amountValue = amountSearch.value.trim();
+                
+                console.log('Tenant search value:', tenantValue); // Debug log
                 
                 if (!tenantValue && !amountValue) {
                     searchStatus.style.display = 'none';
@@ -303,6 +307,7 @@
                 
                 // Normalize the tenant search value for flexible matching
                 const normalizedTenantSearch = normalizeSearchText(tenantValue);
+                console.log('Normalized search:', normalizedTenantSearch); // Debug log
                 
                 const rows = tableBody.getElementsByTagName('tr');
                 let foundMatch = false;
@@ -317,22 +322,30 @@
                     const normalizedOriginator = normalizeSearchText(originator);
                     const normalizedReference = normalizeSearchText(reference);
                     
+                    // Debug first row
+                    if (matchCount === 0 && tenantValue) {
+                        console.log('Reference text:', reference);
+                        console.log('Normalized reference:', normalizedReference);
+                        console.log('Includes search?', normalizedReference.includes(normalizedTenantSearch));
+                    }
+                    
                     // Relaxed tenant matching
                     let matchTenant = false;
                     if (tenantValue) {
-                        // Check normalized versions for flexible matching
+                        // Check if normalized versions contain the search term
                         matchTenant = normalizedOriginator.includes(normalizedTenantSearch) ||
                                      normalizedReference.includes(normalizedTenantSearch);
                     } else {
                         matchTenant = true; // If no tenant search, consider it a match
                     }
                     
-                    let matchAmount = !amountValue || parseFloat(amount) === parseFloat(amountValue);
+                    let matchAmount = !amountValue || Math.abs(parseFloat(amount) - parseFloat(amountValue)) < 0.01;
                     
                     if (matchTenant && matchAmount) {
                         row.classList.add('highlight');
                         foundMatch = true;
                         matchCount++;
+                        console.log('Match found in row:', matchCount); // Debug log
                         
                         // Scroll to first match
                         if (matchCount === 1) {
@@ -346,15 +359,22 @@
                     searchStatus.textContent = `✓ ${matchText} - see highlighted row${matchCount > 1 ? 's' : ''} below`;
                     searchStatus.className = 'search-status found';
                     searchStatus.style.display = 'block';
+                    console.log('Setting status to:', searchStatus.textContent); // Debug log
                 } else {
                     searchStatus.textContent = '✗ No matches found';
                     searchStatus.className = 'search-status not-found';
                     searchStatus.style.display = 'block';
+                    console.log('No matches found'); // Debug log
                 }
             }
             
-            tenantSearch.addEventListener('input', searchTable);
-            amountSearch.addEventListener('input', searchTable);
+            if (tenantSearch && amountSearch) {
+                tenantSearch.addEventListener('input', searchTable);
+                amountSearch.addEventListener('input', searchTable);
+                console.log('Event listeners attached'); // Debug log
+            } else {
+                console.error('Search elements not found!');
+            }
         }
     </script>
     
@@ -363,7 +383,7 @@
             <button class="logout-btn" onclick="logout()">← Logout</button>
             <h1>Wire Transfer Receipts</h1>
             <p>CLG Management</p>
-            <div class="last-updated">Last Updated: 8/21 1:06 PM</div>
+            <div class="last-updated">Last Updated: 8/21 1:16 PM</div>
         </div>
         
         <div class="search-section">
@@ -409,87 +429,5 @@
         </div>
     </div>
     
-    <script>
-        // Search functionality with relaxed matching
-        const tenantSearch = document.getElementById('tenantSearch');
-        const amountSearch = document.getElementById('amountSearch');
-        const searchStatus = document.getElementById('searchStatus');
-        const tableBody = document.getElementById('tableBody');
-        
-        function clearHighlights() {
-            document.querySelectorAll('tr.highlight').forEach(row => {
-                row.classList.remove('highlight');
-            });
-        }
-        
-        function normalizeSearchText(text) {
-            // Remove all spaces, dashes, and convert to lowercase for comparison
-            return text.replace(/[\s\-]/g, '').toLowerCase();
-        }
-        
-        function searchTable() {
-            clearHighlights();
-            searchStatus.style.display = 'none';
-            
-            const tenantValue = tenantSearch.value.toLowerCase();
-            const amountValue = amountSearch.value;
-            
-            if (!tenantValue && !amountValue) return;
-            
-            // Normalize the tenant search value for flexible matching
-            const normalizedTenantSearch = normalizeSearchText(tenantValue);
-            
-            const rows = tableBody.getElementsByTagName('tr');
-            let foundMatch = false;
-            let matchCount = 0;
-            
-            for (let row of rows) {
-                const originator = row.cells[2].textContent.toLowerCase();
-                const reference = row.cells[3].textContent.toLowerCase();
-                const amount = row.cells[1].textContent.replace(/[$,]/g, '');
-                
-                // Normalize originator and reference for comparison
-                const normalizedOriginator = normalizeSearchText(originator);
-                const normalizedReference = normalizeSearchText(reference);
-                
-                // Relaxed tenant matching
-                let matchTenant = false;
-                if (tenantValue) {
-                    // Check both original and normalized versions
-                    matchTenant = originator.includes(tenantValue) || 
-                                 reference.includes(tenantValue) ||
-                                 normalizedOriginator.includes(normalizedTenantSearch) ||
-                                 normalizedReference.includes(normalizedTenantSearch);
-                } else {
-                    matchTenant = true; // If no tenant search, consider it a match
-                }
-                
-                let matchAmount = !amountValue || parseFloat(amount) === parseFloat(amountValue);
-                
-                if (matchTenant && matchAmount) {
-                    row.classList.add('highlight');
-                    foundMatch = true;
-                    matchCount++;
-                    
-                    // Scroll to first match
-                    if (matchCount === 1) {
-                        row.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    }
-                }
-            }
-            
-            if (foundMatch) {
-                const matchText = matchCount === 1 ? 'Match found' : `${matchCount} matches found`;
-                searchStatus.textContent = `✓ ${matchText} - see highlighted row${matchCount > 1 ? 's' : ''} below`;
-                searchStatus.className = 'search-status found';
-            } else {
-                searchStatus.textContent = '✗ No matches found';
-                searchStatus.className = 'search-status not-found';
-            }
-        }
-        
-        tenantSearch.addEventListener('input', searchTable);
-        amountSearch.addEventListener('input', searchTable);
-    </script>
 </body>
 </html>
